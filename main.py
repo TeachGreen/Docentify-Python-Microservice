@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
+from jwt_utils import get_jwt_data
 from chatbot import prever_intencao
 from graphs import (
     accumulated_progress,
@@ -23,7 +24,7 @@ app = FastAPI()
 
 
 @app.get("/graph/{graph}/{institution_id}")
-async def get_graph(graph: str, institution_id: str):
+async def get_graph(request: Request, graph: str, institution_id: str):
     if graph == "course_students":
         data = course_students(institution_id)
     elif graph == "accumulated_students":
@@ -56,6 +57,8 @@ async def get_graph(graph: str, institution_id: str):
     return PlainTextResponse(data)
 
 
-@app.post("/chatbot/{user_id}")
-async def get_chatbot_response(user_id: int, query: ChatbotQuery):
-    return prever_intencao(query.user_message, user_id, query.context)
+@app.post("/chatbot")
+async def get_chatbot_response(request: Request, query: ChatbotQuery):
+    data = get_jwt_data(request)
+    user_email = data.get("email")
+    return prever_intencao(query.user_message, user_email, query.context)

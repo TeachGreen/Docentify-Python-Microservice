@@ -105,11 +105,22 @@ def buscar_dados_no_bd(usuario_id, intencao):
     if intencao == "tempo_conclusao":
         return "Seu tempo de conclusão varia de acordo com seu progresso no curso."
     if intencao == "progresso":
-        query = '''SELECT c.name, COUNT(up.stepId) FROM UserProgress up JOIN Enrollments e ON up.enrollmentId = e.id JOIN Courses c ON e.courseId = c.id WHERE e.userId = %s GROUP BY c.name'''
+        query = '''
+        SELECT c.name, COUNT(up.stepId)
+        FROM UserProgress up 
+        JOIN Enrollments e ON up.enrollmentId = e.id
+        JOIN Users u ON e.userId = u.id
+        JOIN Courses c ON e.courseId = c.id
+        WHERE u.email = %s GROUP BY c.name'''
         r = consultar_bd(query, (usuario_id,))
         return '\n'.join(f"{x[0]}: {x[1]} etapas" for x in r) if r else "Você ainda não começou nenhum curso."
     if intencao == "certificado":
-        query = '''SELECT c.name FROM Courses c JOIN Enrollments e ON c.id = e.courseId WHERE e.userId = %s AND e.isActive = 1'''
+        query = '''
+        SELECT c.name 
+        FROM Courses c 
+        JOIN Enrollments e ON c.id = e.courseId 
+        JOIN Users u ON e.userId = u.id
+        WHERE u.email = %s AND e.isActive = 1'''
         r = consultar_bd(query, (usuario_id,))
         return "Cursos com certificado: " + ', '.join(x[0] for x in r) if r else "Nenhum certificado disponível."
     respostas_fixas = {
