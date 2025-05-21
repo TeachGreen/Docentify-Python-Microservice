@@ -12,6 +12,4 @@ RUN python3 -m spacy download pt_core_news_sm
 
 COPY . .
 
-EXPOSE 8080
-
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app", "--worker-class", "uvicorn.workers.UvicornWorker"]
+CMD uvicorn main:app --port=8080 --host=0.0.0.0
