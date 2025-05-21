@@ -2,9 +2,6 @@
 
 FROM python:3.11
 
-ARG HFTOKEN
-ENV HFTOKEN=$HFTOKEN
-
 WORKDIR /code
 
 COPY requirements.txt .
