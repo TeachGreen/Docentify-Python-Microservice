@@ -22,37 +22,47 @@ def connect_to_db(host, port, user, password, db_name):
     return pymysql.connect(host=host, port=int(port), user=user, password=password, database=db_name, ssl={"teste": True})
 
 
-# Carregamento dos modelos
-modelo_embeddings = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-modelo_bertimbau = TFAutoModelForSequenceClassification.from_pretrained("neuralmind/bert-base-portuguese-cased")
-tokenizer_bertimbau = AutoTokenizer.from_pretrained("neuralmind/bert-base-portuguese-cased", truncation=True, max_length=512)
+def inicializar_modelos():
+    # Carregamento dos modelos
+    modelo_embeddings = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    modelo_bertimbau = TFAutoModelForSequenceClassification.from_pretrained("neuralmind/bert-base-portuguese-cased")
+    tokenizer_bertimbau = AutoTokenizer.from_pretrained("neuralmind/bert-base-portuguese-cased", truncation=True, max_length=512)
 
-# Lista de intenções
-lista_intencoes = [
-    "tempo_conclusao", "progresso", "certificado", "suporte", "feedback", "instituicao",
-    "duracao", "meus_cursos", "obrigatorios", "proximo_modulo", "conclusao",
-    "senha", "alterar_email", "cancelamento", "atividades"
-]
-intencoes_embeddings = modelo_embeddings.encode(lista_intencoes)
+    # Lista de intenções
+    lista_intencoes = [
+        "tempo_conclusao", "progresso", "certificado", "suporte", "feedback", "instituicao",
+        "duracao", "meus_cursos", "obrigatorios", "proximo_modulo", "conclusao",
+        "senha", "alterar_email", "cancelamento", "atividades"
+    ]
+    intencoes_embeddings = modelo_embeddings.encode(lista_intencoes)
 
-# Lemas associados a intenções
-lemas_por_intencao = {
-    "tempo_conclusao": ["tempo", "concluir", "restar", "prazo", "terminar", "estimar"],
-    "progresso": ["progresso", "etapa", "andamento", "evoluir"],
-    "certificado": ["certificado", "diploma"],
-    "suporte": ["ajudar", "suporte", "atender", "socorrer"],
-    "feedback": ["avaliar", "comentar", "opinar"],
-    "instituicao": ["instituição", "faculdade", "universidade", "escola"],
-    "duracao": ["duração", "tempo", "limitar", "período"],
-    "meus_cursos": ["curso", "aula", "matricular", "inscrever"],
-    "obrigatorios": ["obrigar", "necessário", "requisito", "exigir"],
-    "proximo_modulo": ["módulo", "seguir", "etapa", "próximo", "passar", "lição", "depois"],
-    "conclusao": ["concluir", "finalizar", "terminar", "completar", "encerrar"],
-    "senha": ["senha", "acesso", "login", "esquecer"],
-    "alterar_email": ["email", "mudar", "trocar", "atualizar", "corrigir", "editar"],
-    "cancelamento": ["cancelar", "remover", "excluir", "desativar"],
-    "atividades": ["atividade", "tarefa", "pendência", "exercício", "entregar"]
-}
+    # Lemas associados a intenções
+    lemas_por_intencao = {
+        "tempo_conclusao": ["tempo", "concluir", "restar", "prazo", "terminar", "estimar"],
+        "progresso": ["progresso", "etapa", "andamento", "evoluir"],
+        "certificado": ["certificado", "diploma"],
+        "suporte": ["ajudar", "suporte", "atender", "socorrer"],
+        "feedback": ["avaliar", "comentar", "opinar"],
+        "instituicao": ["instituição", "faculdade", "universidade", "escola"],
+        "duracao": ["duração", "tempo", "limitar", "período"],
+        "meus_cursos": ["curso", "aula", "matricular", "inscrever"],
+        "obrigatorios": ["obrigar", "necessário", "requisito", "exigir"],
+        "proximo_modulo": ["módulo", "seguir", "etapa", "próximo", "passar", "lição", "depois"],
+        "conclusao": ["concluir", "finalizar", "terminar", "completar", "encerrar"],
+        "senha": ["senha", "acesso", "login", "esquecer"],
+        "alterar_email": ["email", "mudar", "trocar", "atualizar", "corrigir", "editar"],
+        "cancelamento": ["cancelar", "remover", "excluir", "desativar"],
+        "atividades": ["atividade", "tarefa", "pendência", "exercício", "entregar"]
+    }
+
+    return {
+        'modelo_embeddings': modelo_embeddings,
+        'modelo_bertimbau': modelo_bertimbau,
+        'tokenizer_bertimbau': tokenizer_bertimbau,
+        'lista_intencoes': lista_intencoes,
+        'intencoes_embeddings': intencoes_embeddings,
+        'lemas_por_intencao': lemas_por_intencao
+    }
 
 # Consulta ao banco
 
@@ -63,7 +73,7 @@ def consultar_bd(query, params=None):
         return cursor.fetchall()
 
 # Detecção por lematização com spaCy
-def detectar_por_lematizacao(texto):
+def detectar_por_lematizacao(texto, lista_intencoes, lemas_por_intencao):
     lemas = lematizar(texto)
     scores = {intencao: 0 for intencao in lista_intencoes}
     for intencao, lemas_alvo in lemas_por_intencao.items():
@@ -75,7 +85,7 @@ def detectar_por_lematizacao(texto):
 
 # Correção por similaridade usando rapidfuzz
 
-def corrigir_palavras(texto):
+def corrigir_palavras(texto, lista_intencoes):
     palavras = texto.lower().split()
     for palavra in palavras:
         resultado = process.extractOne(palavra, lista_intencoes, score_cutoff=80)
@@ -84,15 +94,14 @@ def corrigir_palavras(texto):
     return None
 
 # Camadas embeddings e BERT
-
-def buscar_intencao_com_embeddings(pergunta):
+def buscar_intencao_com_embeddings(pergunta, modelo_embeddings, lista_intencoes, intencoes_embeddings):
     pergunta_embed = modelo_embeddings.encode([pergunta])
     similaridade = cosine_similarity(pergunta_embed, intencoes_embeddings)
     if similaridade[0].max() < 0.7:
         return None
     return lista_intencoes[similaridade[0].argmax()]
 
-def buscar_intencao_com_bertimbau(pergunta):
+def buscar_intencao_com_bertimbau(pergunta, modelo_bertimbau, tokenizer_bertimbau, lista_intencoes):
     inputs = tokenizer_bertimbau(pergunta, return_tensors="tf", truncation=True, padding=True, max_length=512)
     outputs = modelo_bertimbau(**inputs)
     pred = tf.argmax(outputs.logits, axis=-1).numpy()[0]
@@ -142,13 +151,14 @@ def buscar_dados_no_bd(usuario_id, intencao):
 # Predição da intenção
 
 def prever_intencao(pergunta, usuario_id, contexto={'tentativas': 0}):
-    intencao = detectar_por_lematizacao(pergunta)
+    modelos = inicializar_modelos()
+    intencao = detectar_por_lematizacao(pergunta, modelos['lista_intencoes'], modelos['lemas_por_intencao'])
     if not intencao:
-        intencao = corrigir_palavras(pergunta)
+        intencao = corrigir_palavras(pergunta, modelos['lista_intencoes'])
     if not intencao:
-        intencao = buscar_intencao_com_embeddings(pergunta)
+        intencao = buscar_intencao_com_embeddings(pergunta, modelos['modelo_embeddings'], modelos['lista_intencoes'], modelos['intencoes_embeddings'])
     if not intencao:
-        intencao = buscar_intencao_com_bertimbau(pergunta)
+        intencao = buscar_intencao_com_bertimbau(pergunta, modelos['modelo_bertimbau'], modelos['tokenizer_bertimbau'], modelos['lista_intencoes'])
     if intencao:
         return {
             'message': buscar_dados_no_bd(usuario_id, intencao),

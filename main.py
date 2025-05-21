@@ -22,7 +22,6 @@ from queries import ChatbotQuery
 
 
 app = FastAPI()
-snapshot_download('neuralmind/bert-base-portuguese-cased', repo_type='model')
 
 
 @app.get("/graph/{graph}/{institution_id}")
