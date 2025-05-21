@@ -2,13 +2,18 @@
 
 FROM python:3.11
 
+ARG HFTOKEN
+ENV HFTOKEN_ENV=$HFTOKEN
+
+
 WORKDIR /code
 
 COPY requirements.txt .
 
 RUN pip3 install pyopenssl
 RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
-CMD ["python3", "docker_scripts/download_huggingface.py"]
+CMD huggingface-cli login --token $HFTOKEN_ENV
+CMD huggingface-cli download neuralmind/bert-base-portuguese-cased
 
 COPY . .
 
