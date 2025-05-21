@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
+from huggingface_hub import snapshot_download
 from jwt_utils import get_jwt_data
 from chatbot import prever_intencao
 from graphs import (
@@ -21,6 +22,7 @@ from queries import ChatbotQuery
 
 
 app = FastAPI()
+snapshot_download('neuralmind/bert-base-portuguese-cased', repo_type='model')
 
 
 @app.get("/graph/{graph}/{institution_id}")
